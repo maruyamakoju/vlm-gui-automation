@@ -15,6 +15,12 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import uvicorn
 from pathlib import Path
+from PIL import Image
+import io
+import os
+
+# Import VLM service
+from vlm_service import init_vlm_service, get_vlm_service
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -31,6 +37,43 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# --- Startup/Shutdown Events ---
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize VLM service on startup."""
+    model_dir = os.getenv("VLM_MODEL_DIR", "models/Qwen2.5-VL-32B-Instruct")
+    use_dummy = os.getenv("USE_DUMMY_VLM", "false").lower() == "true"
+
+    print("=" * 70)
+    print("INITIALIZING VLM SERVICE")
+    print("=" * 70)
+    print(f"Model directory: {model_dir}")
+    print(f"Dummy mode: {use_dummy}")
+    print()
+
+    try:
+        init_vlm_service(
+            model_dir=model_dir,
+            device="cuda" if os.path.exists("/proc/driver/nvidia") or os.name == "nt" else "cpu",
+            use_dummy=use_dummy
+        )
+        print("[OK] VLM service initialized")
+    except Exception as e:
+        print(f"[WARNING] VLM service initialization failed: {e}")
+        print("[INFO] Falling back to dummy mode")
+        init_vlm_service(model_dir=model_dir, use_dummy=True)
+
+    print("=" * 70)
+    print()
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on shutdown."""
+    print("Shutting down VLM service...")
 
 
 # --- Data Models ---
@@ -109,29 +152,46 @@ async def health_check():
     }
 
 
-@app.post("/api/v1/analyze_screen", response_model=ScreenAnalysisResponse)
-async def analyze_screen(screenshot: UploadFile = File(...)):
+@app.post("/api/v1/analyze_screen")
+async def analyze_screen(file: UploadFile = File(...)):
     """
     Analyze screenshot using VLM.
 
     Takes a screenshot image and returns detected UI elements with bounding boxes.
 
     Args:
-        screenshot: PNG/JPEG image file
+        file: PNG/JPEG image file
 
     Returns:
-        ScreenAnalysisResponse with detected elements
+        Dict with summary, elements, and processing_time
     """
-    # TODO: Implement VLM inference
-    # 1. Load image
-    # 2. Run VLM inference
-    # 3. Parse output (JSON with elements)
-    # 4. Return structured response
+    # Validate file type
+    if file.content_type not in ("image/png", "image/jpeg", "image/jpg"):
+        raise HTTPException(
+            status_code=400,
+            detail="Only PNG/JPEG images are supported"
+        )
 
-    raise HTTPException(
-        status_code=501,
-        detail="Screen analysis not yet implemented (Phase 1)"
-    )
+    # Read and load image
+    try:
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Failed to load image: {str(e)}"
+        )
+
+    # Analyze with VLM
+    try:
+        vlm = get_vlm_service()
+        result = vlm.analyze(image)
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}"
+        )
 
 
 @app.post("/api/v1/generate_plan", response_model=PlanGenerationResponse)

@@ -1,0 +1,39 @@
+{
+  "summary": "ダミーモード: Chrome ブラウザが表示されています。検索バーと複数のタブが見えます。",
+  "elements": [
+    {
+      "type": "button",
+      "text": "新しいタブ",
+      "bbox": [
+        100,
+        50,
+        200,
+        80
+      ],
+      "confidence": 0.95
+    },
+    {
+      "type": "input",
+      "text": "検索またはURLを入力",
+      "bbox": [
+        300,
+        50,
+        800,
+        80
+      ],
+      "confidence": 0.9
+    },
+    {
+      "type": "button",
+      "text": "設定",
+      "bbox": [
+        1200,
+        50,
+        1250,
+        80
+      ],
+      "confidence": 0.85
+    }
+  ],
+  "processing_time": 0.5
+}
