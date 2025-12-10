@@ -19,9 +19,9 @@ def test_cuda():
         print(f"GPU device: {torch.cuda.get_device_name(0)}")
         print(f"GPU memory: {torch.cuda.get_device_properties(0).total_memory / 1e9:.2f} GB")
         print(f"Current memory allocated: {torch.cuda.memory_allocated(0) / 1e9:.2f} GB")
-        print("\n✓ CUDA test passed")
+        print("\n[OK] CUDA test passed")
     else:
-        print("\n✗ CUDA not available - check installation")
+        print("\n[FAILED] CUDA not available - check installation")
 
     print()
 
@@ -34,10 +34,10 @@ def test_transformers():
 
     try:
         from transformers import AutoTokenizer, AutoModelForCausalLM
-        print("✓ transformers imported successfully")
+        print("[OK] transformers imported successfully")
         print(f"transformers version: {__import__('transformers').__version__}")
     except ImportError as e:
-        print(f"✗ transformers import failed: {e}")
+        print(f"[FAILED] transformers import failed: {e}")
         return False
 
     print()
@@ -53,7 +53,7 @@ def test_vlm_loading():
     model_path = Path("models/Qwen2.5-VL-32B-Instruct")
 
     if not model_path.exists():
-        print(f"✗ Model not found at {model_path}")
+        print(f"[FAILED] Model not found at {model_path}")
         print("  Download model first:")
         print("  git clone https://huggingface.co/Qwen/Qwen2.5-VL-32B-Instruct models/Qwen2.5-VL-32B-Instruct")
         return False
@@ -73,7 +73,7 @@ def test_vlm_loading():
         start_time = time.time()
 
         tokenizer = AutoTokenizer.from_pretrained(str(model_path))
-        print("✓ Tokenizer loaded")
+        print("[OK] Tokenizer loaded")
 
         model = AutoModelForCausalLM.from_pretrained(
             str(model_path),
@@ -83,18 +83,18 @@ def test_vlm_loading():
         )
 
         load_time = time.time() - start_time
-        print(f"✓ Model loaded in {load_time:.2f} seconds")
+        print(f"[OK] Model loaded in {load_time:.2f} seconds")
 
         # Check memory usage
         if torch.cuda.is_available():
             memory_used = torch.cuda.memory_allocated(0) / 1e9
             print(f"GPU memory used: {memory_used:.2f} GB")
 
-        print("\n✓ VLM model loading test passed")
+        print("\n[OK] VLM model loading test passed")
         return True
 
     except Exception as e:
-        print(f"\n✗ Model loading failed: {e}")
+        print(f"\n[FAILED] Model loading failed: {e}")
         return False
 
 
@@ -111,9 +111,9 @@ def test_inference():
 def main():
     """Run all tests."""
     print("\n")
-    print("╔" + "=" * 68 + "╗")
-    print("║" + " " * 15 + "VLM ENVIRONMENT TEST SUITE" + " " * 27 + "║")
-    print("╚" + "=" * 68 + "╝")
+    print("=" * 70)
+    print(" " * 15 + "VLM ENVIRONMENT TEST SUITE")
+    print("=" * 70)
     print()
 
     # Test 1: CUDA
@@ -133,8 +133,8 @@ def main():
     print("=" * 70)
     print("SUMMARY")
     print("=" * 70)
-    print("Core dependencies: ✓")
-    print("CUDA support: ✓" if torch.cuda.is_available() else "CUDA support: ✗")
+    print("Core dependencies: OK")
+    print("CUDA support: OK" if torch.cuda.is_available() else "CUDA support: FAILED")
     print()
     print("Next steps:")
     print("1. Download VLM model if not done:")
