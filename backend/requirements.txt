@@ -1,0 +1,46 @@
+# VLM GUI Automation Backend Requirements
+
+# Core Framework
+fastapi==0.109.0
+uvicorn[standard]==0.27.0
+python-multipart==0.0.6
+websockets==12.0
+
+# VLM Inference
+torch==2.1.2
+transformers==4.36.2
+vllm==0.2.7
+accelerate==0.25.0
+bitsandbytes==0.41.3
+
+# Alternative: LMDeploy (uncomment if using instead of vLLM)
+# lmdeploy==0.2.0
+
+# Computer Vision
+Pillow==10.2.0
+opencv-python==4.9.0.80
+
+# GUI Automation
+pyautogui==0.9.54
+pywinauto==0.6.8; sys_platform == 'win32'
+playwright==1.41.0
+
+# Data Processing
+pydantic==2.5.3
+python-jose[cryptography]==3.3.0
+python-dotenv==1.0.0
+
+# Database
+sqlalchemy==2.0.25
+asyncpg==0.29.0
+psycopg2-binary==2.9.9
+
+# Vector Store (for RAG)
+faiss-cpu==1.7.4
+# OR
+# qdrant-client==1.7.0
+
+# Utilities
+loguru==0.7.2
+httpx==0.26.0
+aiofiles==23.2.1
