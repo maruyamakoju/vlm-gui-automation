@@ -10,6 +10,8 @@ FastAPI server providing endpoints for:
 """
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
@@ -53,6 +55,12 @@ app = FastAPI(
     description="Backend API for VLM-based GUI automation",
     version="0.1.0"
 )
+
+# Mount static files for frontend
+STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'frontend', 'static')
+if os.path.exists(STATIC_DIR):
+    app.mount('/static', StaticFiles(directory=STATIC_DIR), name='static')
+    logger.info(f"Mounted static files from: {STATIC_DIR}")
 
 # Enable CORS for Electron frontend
 app.add_middleware(
@@ -213,6 +221,18 @@ async def root():
         "version": "0.1.0",
         "phase": "0 - Environment Setup"
     }
+
+# Serve phase4_demo.html (temporary workaround)
+@app.get("/demo", response_class=HTMLResponse)
+async def serve_demo():
+    """Serve the Phase 4 demo HTML page."""
+    from pathlib import Path
+    backend_dir = Path(__file__).parent
+    demo_path = backend_dir.parent / 'frontend' / 'static' / 'phase4_demo.html'
+    if demo_path.exists():
+        return demo_path.read_text(encoding='utf-8')
+    return "<h1>Error: Demo file not found</h1>"
+
 
 
 @app.get("/health")
@@ -551,176 +571,22 @@ async def generate_plan_gpt(request: GeneratePlanGPTRequest):
 
 @app.post("/api/v1/execute_plan")
 async def execute_plan(request: ExecutePlanRequest):
-    """
-    Execute multi-step action plan with retry support (Phase 4).
+    """Execute multi-step action plan with retry support (Phase 4)."""
+    from plan_executor import execute_plan_sync
 
-    For each step:
-    1. Check rules (safety)
-    2. Execute action (with retry if configured)
-    3. Log result
-
-    Args:
-        request: ExecutePlanRequest with steps and app context
-
-    Returns:
-        Execution results for all steps
-    """
-    results = []
-    failed_step = None
-
-    for i, step in enumerate(request.steps, 1):
-        step_result = {
-            "step": step.step,
-            "action": step.action,
-            "target": step.target,
-            "success": False,
-            "message": "",
-            "attempts": 1,
-            "retry_history": []
-        }
-
-        try:
-            # Extract retry policy from parameters
-            retry_cfg = step.parameters.get("retry") if step.parameters else None
-
-            # Handle special action types (Phase 4)
-            if step.action == "conditional":
-                # Conditional branching
-                # Note: For conditional, we need screen_elements - pass empty for now
-                # TODO: Capture actual screen elements before execution
-                screen_elements = []
-                result = conditional_executor.execute_conditional(
-                    step.dict(),
-                    executor,
-                    screen_elements
-                )
-
-                step_result["success"] = result.get("success", False)
-                step_result["message"] = result.get("message", "")
-                step_result["condition_met"] = result.get("condition_met")
-                step_result["executed_branch"] = result.get("executed_branch")
-                step_result["branch_results"] = result.get("branch_results", [])
-
-                # Skip regular execution path for conditional
-                results.append(step_result)
-
-                if not step_result["success"]:
-                    failed_step = i
-                    break
-
-                continue
-
-            elif step.action == "loop":
-                # Loop execution
-                # Note: For loop, we need screen_elements - pass empty for now
-                # TODO: Capture actual screen elements before execution
-                screen_elements = []
-                result = loop_executor.execute_loop(
-                    step.dict(),
-                    executor,
-                    screen_elements
-                )
-
-                step_result["success"] = result.get("success", False)
-                step_result["message"] = result.get("message", "")
-                step_result["loop_type"] = result.get("loop_type")
-                step_result["iterations"] = result.get("iterations", 0)
-                step_result["iteration_results"] = result.get("iteration_results", [])
-
-                # Skip regular execution path for loop
-                results.append(step_result)
-
-                if not step_result["success"]:
-                    failed_step = i
-                    break
-
-                continue
-
-            # Define action execution function
-            def execute_action():
-                # Simple implementation: create dummy element and execute
-                if step.action == "click":
-                    element = {
-                        "type": "button",
-                        "text": step.target,
-                        "bbox": [100, 100, 200, 150]  # Dummy bbox
-                    }
-                    return executor.click_element(element)
-
-                elif step.action == "type":
-                    text = step.parameters.get("value", "") if step.parameters else ""
-                    return executor.type_text(text)
-
-                elif step.action == "wait":
-                    import time
-                    duration = step.parameters.get("duration", 1) if step.parameters else 1
-                    time.sleep(duration)
-                    return True
-
-                else:
-                    logger.warning(f"Unknown action type: {step.action}")
-                    return False
-
-            # Execute with or without retry
-            if retry_cfg:
-                # Retry enabled
-                policy = RetryPolicy(
-                    max_retries=retry_cfg.get("max_retries", 0),
-                    retry_delay=retry_cfg.get("retry_delay", 1.0),
-                    on_failure=retry_cfg.get("on_failure", "abort")
-                )
-
-                retry_result = execute_with_retry(
-                    execute_action,
-                    f"{step.action} on {step.target}",
-                    policy
-                )
-
-                step_result["success"] = retry_result["success"]
-                step_result["message"] = retry_result["message"]
-                step_result["attempts"] = retry_result["attempts"]
-                step_result["retry_history"] = retry_result.get("retry_history", [])
-                step_result["final_action"] = retry_result.get("final_action", "")
-
-                # Handle on_failure policy
-                if not retry_result["success"]:
-                    if retry_result["final_action"] == "abort":
-                        failed_step = i
-                    elif retry_result["final_action"] == "skip":
-                        # Continue to next step
-                        pass
-                    # ask_user would pause here (not implemented yet)
-            else:
-                # No retry - execute once
-                success = execute_action()
-                step_result["success"] = success
-                step_result["message"] = f"{step.action} {'succeeded' if success else 'failed'}"
-
-                if not success:
-                    failed_step = i
-
-        except Exception as e:
-            logger.exception(f"Step {i} execution failed with exception")
-            step_result["message"] = f"ERROR: {str(e)}"
-            failed_step = i
-
-        results.append(step_result)
-
-        # Stop on failure if abort policy
-        if failed_step and (not retry_cfg or retry_cfg.get("on_failure") == "abort"):
-            break
-
-    # Summary
-    success_count = sum(1 for r in results if r["success"])
-    total_count = len(results)
-
-    return {
-        "success": failed_step is None,
-        "executed_steps": total_count,
-        "successful_steps": success_count,
-        "failed_at_step": failed_step,
-        "results": results
+    plan_data = {
+        "steps": [step.dict() for step in request.steps],
+        "app_name": request.app_name,
+        "screen_pattern": request.screen_pattern,
     }
+
+    result = execute_plan_sync(
+        plan_data,
+        executor=executor,
+        conditional_executor=conditional_executor,
+        loop_executor=loop_executor,
+    )
+    return result
 
 # --- Utility Endpoints ---
 
