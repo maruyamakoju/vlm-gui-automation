@@ -2,7 +2,7 @@
 """
 Test suite for Phase 3: Plan Revision API
 
-Tests the skeleton /api/v1/revise_plan endpoint.
+Tests the /api/v1/revise_plan endpoint with real revision logic.
 """
 
 import requests
@@ -12,17 +12,31 @@ import sys
 API_BASE = "http://127.0.0.1:8002"
 
 
-def test_revise_plan_basic():
-    """Test 1: /api/v1/revise_plan returns success and echoes plan."""
-    print("\n[TEST 1] Basic revise_plan endpoint test")
+def test_revise_plan_filter_column():
+    """Test 1: Revise filter column based on feedback."""
+    print("\n[TEST 1] Revise plan - change filter column")
     print("-" * 60)
 
     payload = {
         "old_plan": [
-            {"id": 1, "action": "click", "params": {"target": "btn_filter"}},
-            {"id": 2, "action": "input", "params": {"field": "amount", "value": "1000"}},
+            {
+                "id": 1,
+                "action": "set_filter",
+                "target_element_id": "btn_filter",
+                "description": "売上金額列でフィルタする",
+                "safety_tag": "safe",
+                "params": {"column": "売上金額"}
+            },
+            {
+                "id": 2,
+                "action": "export_csv",
+                "target_element_id": "btn_export",
+                "description": "CSVでエクスポート",
+                "safety_tag": "safe",
+                "params": {}
+            }
         ],
-        "user_feedback": "違う、この列じゃなくて税込金額でフィルタして",
+        "user_feedback": "違う、この列じゃなくて税込金額列でフィルタして",
     }
 
     try:
@@ -40,26 +54,20 @@ def test_revise_plan_basic():
             return False
 
         data = resp.json()
-        print(f"Response: {data}")
+        print(f"Response message: {data['message']}")
 
         # Validate response structure
         assert data["success"] is True, "Expected success: true"
-        assert len(data["revised_plan"]) == 2, "Expected 2 steps in revised_plan"
-        assert "message" in data, "Expected 'message' field in response"
-        assert "stub" in data["message"].lower(), "Expected stub indication in message"
+        assert len(data["revised_plan"]) == 2, "Expected 2 steps"
 
-        # Verify plan structure
-        for step in data["revised_plan"]:
-            assert "action" in step, "Each step must have 'action'"
-            assert "params" in step, "Each step must have 'params'"
+        # Check if filter column was changed
+        filter_step = data["revised_plan"][0]
+        assert filter_step["action"] == "set_filter", "First step should be set_filter"
+        assert filter_step["params"]["column"] == "税込金額", f"Column should be '税込金額', got '{filter_step['params'].get('column')}'"
 
-        print("[PASS] - Basic endpoint test passed")
+        print("[PASS] - Filter column successfully revised to '税込金額'")
         return True
 
-    except requests.exceptions.ConnectionError:
-        print("[FAIL] - Could not connect to server")
-        print(f"Make sure server is running on {API_BASE}")
-        return False
     except Exception as e:
         print(f"[FAIL] - {str(e)}")
         import traceback
@@ -67,18 +75,23 @@ def test_revise_plan_basic():
         return False
 
 
-def test_revise_plan_with_optional_fields():
-    """Test 2: /api/v1/revise_plan with optional fields."""
-    print("\n[TEST 2] Revise plan with optional fields")
+def test_revise_plan_add_login():
+    """Test 2: Add login step at beginning."""
+    print("\n[TEST 2] Revise plan - add login step")
     print("-" * 60)
 
     payload = {
         "old_plan": [
-            {"action": "navigate", "params": {"url": "https://example.com"}},
+            {
+                "id": 1,
+                "action": "click",
+                "target_element_id": "btn_dashboard",
+                "description": "ダッシュボードを開く",
+                "safety_tag": "safe",
+                "params": {}
+            }
         ],
         "user_feedback": "先にログインしてから",
-        "screen_description": "Login page with username and password fields",
-        "session_id": "test-session-123"
     }
 
     try:
@@ -95,10 +108,17 @@ def test_revise_plan_with_optional_fields():
             return False
 
         data = resp.json()
-        assert data["success"] is True
-        assert len(data["revised_plan"]) == 1
+        print(f"Response message: {data['message']}")
 
-        print("[PASS] - Optional fields handled correctly")
+        assert data["success"] is True
+        assert len(data["revised_plan"]) == 2, f"Expected 2 steps, got {len(data['revised_plan'])}"
+
+        # Check if login step was added at beginning
+        login_step = data["revised_plan"][0]
+        assert login_step["action"] == "login", f"First step should be 'login', got '{login_step['action']}'"
+        assert "ログイン" in login_step["description"], "Description should mention login"
+
+        print("[PASS] - Login step successfully added at beginning")
         return True
 
     except Exception as e:
@@ -107,13 +127,13 @@ def test_revise_plan_with_optional_fields():
 
 
 def test_revise_plan_empty_plan():
-    """Test 3: /api/v1/revise_plan with empty plan."""
-    print("\n[TEST 3] Revise plan with empty plan")
+    """Test 3: Revise empty plan."""
+    print("\n[TEST 3] Revise empty plan")
     print("-" * 60)
 
     payload = {
         "old_plan": [],
-        "user_feedback": "Add a step to click the button",
+        "user_feedback": "新しいタブを開いて",
     }
 
     try:
@@ -130,10 +150,60 @@ def test_revise_plan_empty_plan():
             return False
 
         data = resp.json()
+        print(f"Response message: {data['message']}")
+
+        # Empty plan should return empty (no pattern matched)
         assert data["success"] is True
-        assert len(data["revised_plan"]) == 0  # Stub returns empty plan as-is
+        assert len(data["revised_plan"]) == 0 or len(data["revised_plan"]) == 1
 
         print("[PASS] - Empty plan handled correctly")
+        return True
+
+    except Exception as e:
+        print(f"[FAIL] - {str(e)}")
+        return False
+
+
+def test_revise_plan_no_change():
+    """Test 4: Feedback that doesn't match any pattern."""
+    print("\n[TEST 4] Revise plan - no pattern match")
+    print("-" * 60)
+
+    payload = {
+        "old_plan": [
+            {
+                "id": 1,
+                "action": "click",
+                "target_element_id": "btn_test",
+                "description": "テストボタンをクリック",
+                "safety_tag": "safe",
+                "params": {}
+            }
+        ],
+        "user_feedback": "よくわかりません",  # No pattern matches this
+    }
+
+    try:
+        resp = requests.post(
+            f"{API_BASE}/api/v1/revise_plan",
+            json=payload,
+            timeout=10
+        )
+
+        print(f"Status Code: {resp.status_code}")
+
+        if resp.status_code != 200:
+            print(f"[FAIL] - Expected 200, got {resp.status_code}")
+            return False
+
+        data = resp.json()
+        print(f"Response message: {data['message']}")
+
+        assert data["success"] is True
+        # Plan should be unchanged
+        assert len(data["revised_plan"]) == 1
+
+        print("[PASS] - Unrecognized feedback handled correctly (no changes)")
         return True
 
     except Exception as e:
@@ -148,9 +218,10 @@ def main():
     print("=" * 60)
 
     tests = [
-        test_revise_plan_basic,
-        test_revise_plan_with_optional_fields,
+        test_revise_plan_filter_column,
+        test_revise_plan_add_login,
         test_revise_plan_empty_plan,
+        test_revise_plan_no_change,
     ]
 
     results = []

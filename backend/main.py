@@ -219,9 +219,12 @@ class ExecutePlanRequest(BaseModel):
 # --- Phase 3: Plan Revision Models ---
 
 class PlanStep(BaseModel):
-    """Single step for plan revision (simplified)."""
+    """Single step for plan revision."""
     id: Optional[int] = None
-    action: str
+    action: str  # "click", "input_text", "set_filter", "export_csv", etc.
+    target_element_id: Optional[str] = None  # VLM elements[].id
+    description: str = ""  # Human-readable description (Japanese)
+    safety_tag: str = "safe"  # "safe", "risky", "forbidden"
     params: Dict[str, Any] = {}
 
 
@@ -617,10 +620,15 @@ async def execute_plan(request: ExecutePlanRequest):
 @app.post("/api/v1/revise_plan", response_model=RevisePlanResponse)
 async def revise_plan(request: RevisePlanRequest):
     """
-    Phase 3: Plan revision endpoint (skeleton).
+    Phase 3: Plan revision endpoint (implemented).
 
-    Currently returns old_plan unchanged with feedback logged.
-    Future: call orchestrator.revise_plan(...) for actual revision.
+    Revises plan based on user feedback using SimpleOrchestrator.
+
+    Supported patterns:
+    - "先にログインして" → Add login step at beginning
+    - "税込金額列でフィルタ" → Modify filter column parameter
+    - "〜を削除" → Remove specific step
+    - "〜を追加" → Add new step
 
     Args:
         request: RevisePlanRequest with old_plan, user_feedback, screen_description, session_id
@@ -628,21 +636,47 @@ async def revise_plan(request: RevisePlanRequest):
     Returns:
         RevisePlanResponse with success, revised_plan, message
     """
-    # TODO(Phase 3): orchestrator.revise_plan(...) implementation
-    # For now, return old_plan unchanged to establish API contract
-    logger.info(f"[STUB] revise_plan called with feedback: {request.user_feedback}")
-    logger.info(f"[STUB] Old plan has {len(request.old_plan)} steps")
+    logger.info(f"[PHASE3] revise_plan called with feedback: {request.user_feedback}")
+    logger.info(f"[PHASE3] Old plan has {len(request.old_plan)} steps")
 
-    revised_plan = request.old_plan
+    # Convert PlanStep objects to dicts for orchestrator
+    old_plan_dicts = [step.dict() for step in request.old_plan]
 
-    return RevisePlanResponse(
-        success=True,
-        revised_plan=revised_plan,
-        message=(
-            "Revision endpoint stub: old_plan returned as-is. "
-            "user_feedback was received and logged, but no changes were applied yet."
-        ),
-    )
+    # Call orchestrator to revise plan
+    try:
+        revised_plan_dicts = orchestrator.revise_plan(
+            old_plan=old_plan_dicts,
+            user_feedback=request.user_feedback,
+            screen_description=request.screen_description
+        )
+
+        # Convert dicts back to PlanStep objects
+        revised_steps = [PlanStep(**step) for step in revised_plan_dicts]
+
+        logger.info(f"[PHASE3] Revised plan has {len(revised_steps)} steps")
+
+        # Determine message based on whether plan changed
+        if len(revised_steps) != len(request.old_plan):
+            message = f"Plan revised: {len(request.old_plan)} → {len(revised_steps)} steps"
+        elif revised_steps == request.old_plan:
+            message = "No changes made (feedback pattern not recognized)"
+        else:
+            message = "Plan revised successfully"
+
+        return RevisePlanResponse(
+            success=True,
+            revised_plan=revised_steps,
+            message=message
+        )
+
+    except Exception as e:
+        logger.exception("[PHASE3] Plan revision failed")
+        # Return original plan with error message
+        return RevisePlanResponse(
+            success=False,
+            revised_plan=request.old_plan,
+            message=f"Revision failed: {str(e)}"
+        )
 
 
 # --- Utility Endpoints ---
