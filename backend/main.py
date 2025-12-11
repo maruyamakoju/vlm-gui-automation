@@ -42,6 +42,9 @@ from retry_logic import RetryPolicy, execute_with_retry
 from conditional_executor import ConditionalExecutor
 from loop_executor import LoopExecutor
 
+# Import unified error handler (Phase 5)
+from error_handler import register_error_handlers, ValidationError, VLMError, NotImplementedError as APINotImplementedError
+
 # GPT Orchestrator is optional (requires OPENAI_API_KEY)
 try:
     from orchestrator_gpt import GPTOrchestrator
@@ -70,6 +73,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register unified error handlers (Phase 5)
+register_error_handlers(app)
+logger.info(\"Unified error handlers registered\")
 
 # Initialize Action Executor, Orchestrators, and Rule Engine
 executor = ActionExecutor()
@@ -265,20 +272,14 @@ async def analyze_screen(file: UploadFile = File(...)):
     """
     # Validate file type
     if file.content_type not in ("image/png", "image/jpeg", "image/jpg"):
-        raise HTTPException(
-            status_code=400,
-            detail="Only PNG/JPEG images are supported"
-        )
+        raise ValidationError("Only PNG/JPEG images are supported")
 
     # Read and load image
     try:
         contents = await file.read()
         image = Image.open(io.BytesIO(contents)).convert("RGB")
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Failed to load image: {str(e)}"
-        )
+        raise ValidationError(f"Failed to load image: {str(e)}")
 
     # Analyze with VLM (via adapter)
     try:
@@ -290,10 +291,7 @@ async def analyze_screen(file: UploadFile = File(...)):
         )
         return result
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Analysis failed: {str(e)}"
-        )
+        raise VLMError(f"Analysis failed: {str(e)}")
 
 
 @app.post("/api/v1/generate_plan", response_model=PlanGenerationResponse)
