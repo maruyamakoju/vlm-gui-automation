@@ -28,11 +28,15 @@
 - Missing "steps" field properly caught
 - Error response format: PASS
 
-### ✅ Run Scenario
-- Execution working (5/6 steps succeeded)
-- Expected behavior: Some steps may fail in non-GUI environment
-- Response format: Correct
-- No timeouts or crashes
+### ⚠️ Run Scenario (Experimental)
+- **Status:** Returns `success: false` (5/6 steps succeeded)
+- **Note:** `/api/v1/run_scenario` is currently an experimental endpoint
+  - HTTP interface is functional and stable (no crashes, proper error handling)
+  - Execution logic works (verified via CLI in business_scenarios.py)
+  - Returns `success: false` because GUI automation steps fail in non-GUI environment (expected)
+  - **Full success path planned for Phase 5-B**
+- Response format: Correct (unified error format working)
+- No timeouts or server errors
 
 ## Quality Gates Status
 
@@ -46,6 +50,14 @@
 ## Issues Found
 
 **None critical.** All systems functioning as expected for MVP scope.
+
+### Known Limitations (By Design)
+
+1. **`/api/v1/run_scenario` HTTP endpoint:**
+   - Currently experimental, returns `success: false` in non-GUI environment
+   - This is expected behavior - GUI automation steps cannot execute without actual GUI
+   - Backend logic is functional (verified via CLI)
+   - Full HTTP success path planned for Phase 5-B
 
 ## Final Assessment
 
