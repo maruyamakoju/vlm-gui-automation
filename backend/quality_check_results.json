@@ -1,0 +1,72 @@
+{
+  "timestamp": "2025-12-11 19:39:37",
+  "tests_passed": 7,
+  "tests_failed": 0,
+  "tests_total": 7,
+  "test_details": [
+    {
+      "name": "Server Health Check",
+      "success": true,
+      "message": "Server is running and responding",
+      "details": {
+        "status_code": 200
+      }
+    },
+    {
+      "name": "Business Scenarios API Endpoint",
+      "success": true,
+      "message": "Found 4 business scenarios with correct structure",
+      "details": {
+        "scenarios": [
+          "sales_dashboard",
+          "inventory_check",
+          "customer_survey",
+          "email_automation"
+        ],
+        "count": 4
+      }
+    },
+    {
+      "name": "Library Module Import",
+      "success": true,
+      "message": "Module imports correctly and functions work",
+      "details": {
+        "scenarios_count": 4
+      }
+    },
+    {
+      "name": "Execute Plan Endpoint",
+      "success": true,
+      "message": "Execute plan endpoint works correctly",
+      "details": {
+        "steps_executed": 1
+      }
+    },
+    {
+      "name": "Conditional Action Execution",
+      "success": true,
+      "message": "Conditional action executes correctly",
+      "details": {
+        "condition_met": false,
+        "executed_branch": "if_false"
+      }
+    },
+    {
+      "name": "Loop Action Execution",
+      "success": true,
+      "message": "Loop action executes correctly",
+      "details": {
+        "loop_type": "repeat",
+        "iterations": 3
+      }
+    },
+    {
+      "name": "Environment Configuration",
+      "success": true,
+      "message": "Environment configuration works correctly",
+      "details": {
+        "api_base": "http://127.0.0.1:8002"
+      }
+    }
+  ]
+}
