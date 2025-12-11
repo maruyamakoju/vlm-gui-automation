@@ -10,6 +10,8 @@ import time
 import sys
 from typing import Dict, List, Any
 import os
+import io
+from PIL import Image
 
 # API configuration
 API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8002")
@@ -439,6 +441,67 @@ def test_env_configuration():
         return {"success": False, "message": str(e)}
 
 
+def test_vlm_analyze_endpoint():
+    """Test 8: VLM analyze_screen endpoint (Phase 5-A)"""
+    try:
+        # Create a small test image
+        img = Image.new("RGB", (128, 128), (128, 128, 128))
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
+
+        # Send request to /api/v1/analyze_screen
+        files = {
+            "file": ("test.png", buf, "image/png"),
+        }
+
+        response = requests.post(
+            f"{API_BASE}/api/v1/analyze_screen",
+            files=files,
+            timeout=15
+        )
+
+        if response.status_code != 200:
+            return {
+                "success": False,
+                "message": f"API returned status {response.status_code}",
+                "details": {"status_code": response.status_code}
+            }
+
+        data = response.json()
+
+        # Validate response structure
+        if not data.get("success"):
+            return {
+                "success": False,
+                "message": "VLM endpoint returned success=False",
+                "details": data
+            }
+
+        # Check for required fields
+        required_fields = ["success", "summary", "elements", "processing_time"]
+        missing_fields = [f for f in required_fields if f not in data]
+
+        if missing_fields:
+            return {
+                "success": False,
+                "message": f"Response missing required fields: {missing_fields}",
+                "details": data
+            }
+
+        return {
+            "success": True,
+            "message": "VLM analyze_screen endpoint works correctly (Dummy mode)",
+            "details": {
+                "elements_detected": len(data.get("elements", [])),
+                "processing_time": f"{data.get('processing_time', 0):.3f}s"
+            }
+        }
+
+    except Exception as e:
+        return {"success": False, "message": str(e)}
+
+
 def main():
     """Run all quality checks"""
     print("=" * 70)
@@ -457,6 +520,7 @@ def main():
     checker.test("Conditional Action Execution", test_conditional_action)
     checker.test("Loop Action Execution", test_loop_action)
     checker.test("Environment Configuration", test_env_configuration)
+    checker.test("VLM Analyze Screen Endpoint", test_vlm_analyze_endpoint)
 
     # Print summary
     results = checker.print_summary()
