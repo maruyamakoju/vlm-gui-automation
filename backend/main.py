@@ -26,8 +26,8 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Import VLM service
-from vlm_service import init_vlm_service, get_vlm_service
+# Import VLM adapter (Phase 5-A)
+from vlm_adapter import init_global_vlm_client, get_global_vlm_client
 
 # Import Action Executor
 from action_executor import ActionExecutor
@@ -96,28 +96,27 @@ else:
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize VLM service on startup."""
+    """Initialize VLM client (via adapter) on startup."""
     model_dir = os.getenv("VLM_MODEL_DIR", "models/Qwen2.5-VL-32B-Instruct")
-    use_dummy = os.getenv("USE_DUMMY_VLM", "false").lower() == "true"
 
     print("=" * 70)
-    print("INITIALIZING VLM SERVICE")
+    print("INITIALIZING VLM CLIENT (Phase 5-A)")
     print("=" * 70)
     print(f"Model directory: {model_dir}")
-    print(f"Dummy mode: {use_dummy}")
     print()
 
     try:
-        init_vlm_service(
+        # Initialize VLM adapter (auto-detects backend from USE_DUMMY_VLM env var)
+        init_global_vlm_client(
+            backend=None,  # Auto-detect from environment
             model_dir=model_dir,
-            device="cuda" if os.path.exists("/proc/driver/nvidia") or os.name == "nt" else "cpu",
-            use_dummy=use_dummy
+            device="cuda" if os.path.exists("/proc/driver/nvidia") or os.name == "nt" else "cpu"
         )
-        print("[OK] VLM service initialized")
+        print("[OK] VLM client initialized via adapter")
     except Exception as e:
-        print(f"[WARNING] VLM service initialization failed: {e}")
+        print(f"[WARNING] VLM client initialization failed: {e}")
         print("[INFO] Falling back to dummy mode")
-        init_vlm_service(model_dir=model_dir, use_dummy=True)
+        init_global_vlm_client(backend="dummy", model_dir=model_dir)
 
     print("=" * 70)
     print()
@@ -254,7 +253,7 @@ async def health_check():
 @app.post("/api/v1/analyze_screen")
 async def analyze_screen(file: UploadFile = File(...)):
     """
-    Analyze screenshot using VLM.
+    Analyze screenshot using VLM (via adapter - Phase 5-A).
 
     Takes a screenshot image and returns detected UI elements with bounding boxes.
 
@@ -262,7 +261,7 @@ async def analyze_screen(file: UploadFile = File(...)):
         file: PNG/JPEG image file
 
     Returns:
-        Dict with summary, elements, and processing_time
+        Dict with success, summary, elements, reasoning, and processing_time
     """
     # Validate file type
     if file.content_type not in ("image/png", "image/jpeg", "image/jpg"):
@@ -281,10 +280,14 @@ async def analyze_screen(file: UploadFile = File(...)):
             detail=f"Failed to load image: {str(e)}"
         )
 
-    # Analyze with VLM
+    # Analyze with VLM (via adapter)
     try:
-        vlm = get_vlm_service()
-        result = vlm.analyze(image)
+        vlm_client = get_global_vlm_client()
+        result = vlm_client.analyze_screen(
+            image=image,
+            instruction="Analyze this GUI screenshot and identify all interactive elements",
+            context={}
+        )
         return result
     except Exception as e:
         raise HTTPException(
