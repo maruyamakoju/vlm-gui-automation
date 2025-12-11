@@ -76,7 +76,7 @@ app.add_middleware(
 
 # Register unified error handlers (Phase 5)
 register_error_handlers(app)
-logger.info(\"Unified error handlers registered\")
+logger.info("Unified error handlers registered")
 
 # Initialize Action Executor, Orchestrators, and Rule Engine
 executor = ActionExecutor()
