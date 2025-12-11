@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Phase 4 Demo - Complex Automation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+        }
+        .section h2 {
+            color: #555;
+            margin-top: 0;
+        }
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        .item-button {
+            background: #4CAF50;
+            color: white;
+        }
+        .item-button:hover {
+            background: #45a049;
+        }
+        .control-button {
+            background: #2196F3;
+            color: white;
+        }
+        .control-button:hover {
+            background: #0b7dda;
+        }
+        .error-button {
+            background: #f44336;
+            color: white;
+            display: none;
+        }
+        .error-button:hover {
+            background: #da190b;
+        }
+        #status {
+            margin-top: 20px;
+            padding: 15px;
+            background: #e8f5e9;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+        .list-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: #f0f0f0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .list-item:hover {
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Phase 4 Complex Automation Demo</h1>
+
+        <div class="section">
+            <h2>Section 1: Loop Test (For-Each)</h2>
+            <p>These items will be processed in a loop:</p>
+            <div class="list-item" id="item1">Item 1: First Task</div>
+            <div class="list-item" id="item2">Item 2: Second Task</div>
+            <div class="list-item" id="item3">Item 3: Third Task</div>
+            <div class="list-item" id="item4">Item 4: Fourth Task</div>
+        </div>
+
+        <div class="section">
+            <h2>Section 2: Conditional Test</h2>
+            <p>Conditional branching based on button state:</p>
+            <button class="control-button" id="toggleError" onclick="toggleError()">
+                Toggle Error State
+            </button>
+            <button class="error-button" id="errorBtn">
+                ❌ Error: Close This
+            </button>
+            <p id="errorStatus" style="color: #666;">Status: Normal (No Error)</p>
+        </div>
+
+        <div class="section">
+            <h2>Section 3: Repeat Loop Test</h2>
+            <p>These buttons demonstrate repeat loops:</p>
+            <button class="item-button" onclick="incrementCounter(1)">Step 1</button>
+            <button class="item-button" onclick="incrementCounter(2)">Step 2</button>
+            <button class="item-button" onclick="incrementCounter(3)">Step 3</button>
+            <p id="counter">Steps completed: 0</p>
+        </div>
+
+        <div class="section">
+            <h2>Section 4: Business Scenarios</h2>
+            <p>Execute production-ready business automation scenarios:</p>
+            <select id="scenarioSelect" style="padding: 8px; font-size: 16px; margin-right: 10px; border-radius: 4px; border: 1px solid #ddd;">
+                <option value="">-- Select a Scenario --</option>
+            </select>
+            <button class="control-button" onclick="runBusinessScenario()">
+                ▶ Run Scenario
+            </button>
+            <div id="scenarioResult" style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 4px; font-family: monospace; white-space: pre-wrap; display: none;">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Section 5: VLM Screen Analysis</h2>
+            <p>Upload a GUI screenshot and analyze it via VLM endpoint:</p>
+            <input type="file" id="vlmFileInput" accept="image/png, image/jpeg" style="margin-right: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;" />
+            <button class="control-button" onclick="analyzeScreen()">
+                ▶ Analyze Screen
+            </button>
+            <div id="vlmResult" style="margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 4px; font-family: monospace; white-space: pre-wrap; display: none;">
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Status Log</h2>
+            <div id="status">Ready for automation...</div>
+        </div>
+    </div>
+
+    <script>
+        let counterValue = 0;
+        let errorState = false;
+
+        function toggleError() {
+            errorState = !errorState;
+            document.getElementById('errorBtn').style.display = errorState ? 'inline-block' : 'none';
+            document.getElementById('errorStatus').textContent = errorState ?
+                'Status: ERROR! Close the error dialog.' : 'Status: Normal (No Error)';
+            document.getElementById('errorStatus').style.color = errorState ? '#f44336' : '#666';
+            logStatus(errorState ? 'Error state activated' : 'Error state cleared');
+        }
+
+        function incrementCounter(step) {
+            counterValue++;
+            document.getElementById('counter').textContent = 'Steps completed: ' + counterValue;
+            logStatus('Step ' + step + ' clicked (total: ' + counterValue + ')');
+        }
+
+        function logStatus(message) {
+            const statusDiv = document.getElementById('status');
+            const timestamp = new Date().toLocaleTimeString();
+            statusDiv.textContent = '[' + timestamp + '] ' + message;
+        }
+
+        // Log clicks on list items
+        document.querySelectorAll('.list-item').forEach(item => {
+            item.addEventListener('click', function() {
+                logStatus('Clicked: ' + this.textContent);
+                this.style.background = '#c8e6c9';
+                setTimeout(() => {
+                    this.style.background = '#f0f0f0';
+                }, 300);
+            });
+        });
+
+        // VLM Screen Analysis API Integration
+        async function analyzeScreen() {
+            const input = document.getElementById('vlmFileInput');
+            const resultDiv = document.getElementById('vlmResult');
+
+            if (!input.files || input.files.length === 0) {
+                alert('Please select a screenshot image (PNG/JPEG).');
+                return;
+            }
+
+            const file = input.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Analyzing screen...';
+
+            logStatus('Uploading screenshot to /api/v1/analyze_screen');
+
+            try {
+                const response = await fetch('http://127.0.0.1:8002/api/v1/analyze_screen', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    const lines = [];
+                    lines.push('✓ VLM analysis successful');
+                    lines.push('');
+                    lines.push('Summary:');
+                    lines.push(data.summary || '(no summary)');
+                    lines.push('');
+                    lines.push('Elements detected: ' + (data.elements ? data.elements.length : 0));
+                    lines.push('Processing time: ' + (data.processing_time != null ? data.processing_time.toFixed(3) + 's' : 'N/A'));
+                    lines.push('');
+                    lines.push('Raw response:');
+                    lines.push(JSON.stringify(data, null, 2));
+
+                    resultDiv.textContent = lines.join('\n');
+                    logStatus('VLM screen analysis completed successfully');
+                } else {
+                    resultDiv.textContent = '✗ VLM analysis failed\n\n' + JSON.stringify(data, null, 2);
+                    logStatus('VLM analysis failed');
+                }
+            } catch (error) {
+                resultDiv.textContent = '✗ Error calling VLM endpoint:\n' + error.message;
+                logStatus('Error calling /api/v1/analyze_screen: ' + error.message);
+            }
+        }
+
+        // Business Scenarios API Integration
+        async function loadScenarios() {
+            try {
+                const response = await fetch('http://127.0.0.1:8002/api/v1/business_scenarios');
+                const data = await response.json();
+
+                if (data.success && data.scenarios) {
+                    const select = document.getElementById('scenarioSelect');
+                    data.scenarios.forEach(scenario => {
+                        const option = document.createElement('option');
+                        option.value = scenario.id;
+                        option.textContent = scenario.name + ' (' + scenario.steps_count + ' steps)';
+                        select.appendChild(option);
+                    });
+                    logStatus('Loaded ' + data.scenarios.length + ' business scenarios');
+                } else {
+                    logStatus('Error loading scenarios: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                logStatus('Failed to load scenarios: ' + error.message);
+            }
+        }
+
+        async function runBusinessScenario() {
+            const scenarioId = document.getElementById('scenarioSelect').value;
+            if (!scenarioId) {
+                alert('Please select a scenario first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('scenarioResult');
+            resultDiv.style.display = 'block';
+            resultDiv.textContent = 'Running scenario ' + scenarioId + '...';
+            logStatus('Starting scenario: ' + scenarioId);
+
+            try {
+                const response = await fetch('http://127.0.0.1:8002/api/v1/run_scenario', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        scenario_name: scenarioId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const summary = '✓ Scenario completed successfully!\n\n' +
+                                  'Scenario: ' + data.scenario_name + '\n' +
+                                  'Steps executed: ' + (data.plan_result?.results?.length || 0) + '\n' +
+                                  'Duration: ' + (data.execution_time ? data.execution_time.toFixed(2) + 's' : 'N/A') + '\n\n' +
+                                  'Results:\n' +
+                                  JSON.stringify(data.plan_result, null, 2);
+                    resultDiv.textContent = summary;
+                    logStatus('Scenario ' + scenarioId + ' completed');
+                } else {
+                    resultDiv.textContent = '✗ Scenario failed:\n' + (data.error || 'Unknown error') + '\n\n' + JSON.stringify(data, null, 2);
+                    logStatus('Scenario ' + scenarioId + ' failed: ' + data.error);
+                }
+            } catch (error) {
+                resultDiv.textContent = '✗ Error running scenario:\n' + error.message;
+                logStatus('Error running scenario: ' + error.message);
+            }
+        }
+
+        // Load scenarios when page loads
+        window.addEventListener('DOMContentLoaded', loadScenarios);
+    </script>
+</body>
+</html>
