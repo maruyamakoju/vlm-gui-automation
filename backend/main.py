@@ -216,6 +216,30 @@ class ExecutePlanRequest(BaseModel):
     screen_pattern: Optional[str] = None
 
 
+# --- Phase 3: Plan Revision Models ---
+
+class PlanStep(BaseModel):
+    """Single step for plan revision (simplified)."""
+    id: Optional[int] = None
+    action: str
+    params: Dict[str, Any] = {}
+
+
+class RevisePlanRequest(BaseModel):
+    """Phase 3: Plan revision request."""
+    old_plan: List[PlanStep]
+    user_feedback: str
+    screen_description: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+class RevisePlanResponse(BaseModel):
+    """Phase 3: Plan revision response (skeleton)."""
+    success: bool
+    revised_plan: List[PlanStep]
+    message: str
+
+
 # --- API Endpoints ---
 
 @app.get("/")
@@ -588,6 +612,38 @@ async def execute_plan(request: ExecutePlanRequest):
         loop_executor=loop_executor,
     )
     return result
+
+
+@app.post("/api/v1/revise_plan", response_model=RevisePlanResponse)
+async def revise_plan(request: RevisePlanRequest):
+    """
+    Phase 3: Plan revision endpoint (skeleton).
+
+    Currently returns old_plan unchanged with feedback logged.
+    Future: call orchestrator.revise_plan(...) for actual revision.
+
+    Args:
+        request: RevisePlanRequest with old_plan, user_feedback, screen_description, session_id
+
+    Returns:
+        RevisePlanResponse with success, revised_plan, message
+    """
+    # TODO(Phase 3): orchestrator.revise_plan(...) implementation
+    # For now, return old_plan unchanged to establish API contract
+    logger.info(f"[STUB] revise_plan called with feedback: {request.user_feedback}")
+    logger.info(f"[STUB] Old plan has {len(request.old_plan)} steps")
+
+    revised_plan = request.old_plan
+
+    return RevisePlanResponse(
+        success=True,
+        revised_plan=revised_plan,
+        message=(
+            "Revision endpoint stub: old_plan returned as-is. "
+            "user_feedback was received and logged, but no changes were applied yet."
+        ),
+    )
+
 
 # --- Utility Endpoints ---
 
