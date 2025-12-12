@@ -1,15 +1,20 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Test suite for Phase 3: Plan Revision API
 
 Tests the /api/v1/revise_plan endpoint with real revision logic.
+Uses FastAPI TestClient for direct testing without external server.
 """
 
-import requests
+from fastapi.testclient import TestClient
 import sys
 
-# API configuration
-API_BASE = "http://127.0.0.1:8002"
+sys.path.insert(0, "C:/Users/07013/Desktop/vlm-gui-automation/backend")
+
+from main import app
+
+client = TestClient(app)
 
 
 def test_revise_plan_filter_column():
@@ -40,11 +45,7 @@ def test_revise_plan_filter_column():
     }
 
     try:
-        resp = requests.post(
-            f"{API_BASE}/api/v1/revise_plan",
-            json=payload,
-            timeout=10
-        )
+        resp = client.post("/api/v1/revise_plan", json=payload)
 
         print(f"Status Code: {resp.status_code}")
 
@@ -95,11 +96,7 @@ def test_revise_plan_add_login():
     }
 
     try:
-        resp = requests.post(
-            f"{API_BASE}/api/v1/revise_plan",
-            json=payload,
-            timeout=10
-        )
+        resp = client.post("/api/v1/revise_plan", json=payload)
 
         print(f"Status Code: {resp.status_code}")
 
@@ -137,11 +134,7 @@ def test_revise_plan_empty_plan():
     }
 
     try:
-        resp = requests.post(
-            f"{API_BASE}/api/v1/revise_plan",
-            json=payload,
-            timeout=10
-        )
+        resp = client.post("/api/v1/revise_plan", json=payload)
 
         print(f"Status Code: {resp.status_code}")
 
@@ -184,11 +177,7 @@ def test_revise_plan_no_change():
     }
 
     try:
-        resp = requests.post(
-            f"{API_BASE}/api/v1/revise_plan",
-            json=payload,
-            timeout=10
-        )
+        resp = client.post("/api/v1/revise_plan", json=payload)
 
         print(f"Status Code: {resp.status_code}")
 

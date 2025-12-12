@@ -6,10 +6,41 @@ Matches user instructions to UI elements using simple text matching.
 
 Phase 2 v0: Rule-based matching only (no LLM)
 Phase 3: Will be replaced with GPT-4 orchestrator
+Updated: Fixed column name extraction regex (excluding hiragana particles)
 """
 
 from typing import Dict, Any, List, Optional
 import re
+
+
+def _extract_column_name_from_feedback(feedback: str) -> Optional[str]:
+    """
+    Extract column name from user feedback.
+
+    Priority:
+    1. Quoted pattern: 「税込金額」列
+    2. X列で pattern: 税込金額列でフィルタ
+    3. Shortest X列 pattern (most specific)
+    """
+    text = feedback.replace(" ", "").replace("　", "")
+
+    # 1) 「〜」列パターンを優先（かぎかっこで明示されている）
+    quoted = re.findall(r"「([^」]+)」列", text)
+    if quoted:
+        return quoted[-1]
+
+    # 2) 「X列で」パターン（「で」の直前 = 文脈から明確）
+    # Match only kanji/katakana (no hiragana particles) before 列で
+    column_before_de = re.search(r"([ァ-ヶー一-龯0-9a-zA-Z]{1,10})列で", text)
+    if column_before_de:
+        return column_before_de.group(1)
+
+    # 3) すべての「X列」パターンから最短のものを選ぶ（最も具体的な列名の可能性が高い）
+    all_columns = re.findall(r"([ぁ-んァ-ヶー一-龯0-9a-zA-Z]{1,10})(?:列|カラム)", text)
+    if all_columns:
+        return min(all_columns, key=len)
+
+    return None
 
 
 class SimpleOrchestrator:
@@ -185,12 +216,10 @@ class SimpleOrchestrator:
 
         # Pattern 2: "税込金額列でフィルタ" / "〜でフィルタ"
         elif ("列" in feedback_normalized or "カラム" in feedback_normalized) and ("フィルタ" in feedback_normalized or "絞" in feedback_normalized):
-            # Extract column name (simple heuristic)
-            # Find text before "列" or "でフィルタ"
-            import re
-            column_match = re.search(r'([ぁ-んァ-ヶー一-龯0-9a-zA-Z]+)(?:列|カラム|で|を)(?:フィルタ|絞)', feedback_normalized)
-            if column_match:
-                column_name = column_match.group(1)
+            # Use helper function to extract column name with priority-based logic
+            column_name = _extract_column_name_from_feedback(feedback_normalized)
+
+            if column_name:
                 # Find filter/set_filter action and update params
                 for step in revised:
                     if step.get("action") in ("set_filter", "filter", "click"):
