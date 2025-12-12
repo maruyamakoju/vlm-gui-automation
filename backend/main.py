@@ -216,6 +216,33 @@ class ExecutePlanRequest(BaseModel):
     screen_pattern: Optional[str] = None
 
 
+# --- Phase 3: Plan Revision Models ---
+
+class PlanStep(BaseModel):
+    """Single step for plan revision."""
+    id: Optional[int] = None
+    action: str  # "click", "input_text", "set_filter", "export_csv", etc.
+    target_element_id: Optional[str] = None  # VLM elements[].id
+    description: str = ""  # Human-readable description (Japanese)
+    safety_tag: str = "safe"  # "safe", "risky", "forbidden"
+    params: Dict[str, Any] = {}
+
+
+class RevisePlanRequest(BaseModel):
+    """Phase 3: Plan revision request."""
+    old_plan: List[PlanStep]
+    user_feedback: str
+    screen_description: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+class RevisePlanResponse(BaseModel):
+    """Phase 3: Plan revision response (skeleton)."""
+    success: bool
+    revised_plan: List[PlanStep]
+    message: str
+
+
 # --- API Endpoints ---
 
 @app.get("/")
@@ -588,6 +615,69 @@ async def execute_plan(request: ExecutePlanRequest):
         loop_executor=loop_executor,
     )
     return result
+
+
+@app.post("/api/v1/revise_plan", response_model=RevisePlanResponse)
+async def revise_plan(request: RevisePlanRequest):
+    """
+    Phase 3: Plan revision endpoint (implemented).
+
+    Revises plan based on user feedback using SimpleOrchestrator.
+
+    Supported patterns:
+    - "先にログインして" → Add login step at beginning
+    - "税込金額列でフィルタ" → Modify filter column parameter
+    - "〜を削除" → Remove specific step
+    - "〜を追加" → Add new step
+
+    Args:
+        request: RevisePlanRequest with old_plan, user_feedback, screen_description, session_id
+
+    Returns:
+        RevisePlanResponse with success, revised_plan, message
+    """
+    logger.info(f"[PHASE3] revise_plan called with feedback: {request.user_feedback}")
+    logger.info(f"[PHASE3] Old plan has {len(request.old_plan)} steps")
+
+    # Convert PlanStep objects to dicts for orchestrator
+    old_plan_dicts = [step.dict() for step in request.old_plan]
+
+    # Call orchestrator to revise plan
+    try:
+        revised_plan_dicts = orchestrator.revise_plan(
+            old_plan=old_plan_dicts,
+            user_feedback=request.user_feedback,
+            screen_description=request.screen_description
+        )
+
+        # Convert dicts back to PlanStep objects
+        revised_steps = [PlanStep(**step) for step in revised_plan_dicts]
+
+        logger.info(f"[PHASE3] Revised plan has {len(revised_steps)} steps")
+
+        # Determine message based on whether plan changed
+        if len(revised_steps) != len(request.old_plan):
+            message = f"Plan revised: {len(request.old_plan)} → {len(revised_steps)} steps"
+        elif revised_steps == request.old_plan:
+            message = "No changes made (feedback pattern not recognized)"
+        else:
+            message = "Plan revised successfully"
+
+        return RevisePlanResponse(
+            success=True,
+            revised_plan=revised_steps,
+            message=message
+        )
+
+    except Exception as e:
+        logger.exception("[PHASE3] Plan revision failed")
+        # Return original plan with error message
+        return RevisePlanResponse(
+            success=False,
+            revised_plan=request.old_plan,
+            message=f"Revision failed: {str(e)}"
+        )
+
 
 # --- Utility Endpoints ---
 
