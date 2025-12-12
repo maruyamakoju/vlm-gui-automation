@@ -1,0 +1,21 @@
+# VLM GUI Automation - Dependencies
+# Phase 4: Excel Automation Support
+
+# Core Web Framework
+fastapi>=0.104.0
+uvicorn>=0.24.0
+pydantic>=2.0.0
+
+# Excel Automation (Phase 4)
+openpyxl>=3.1.0        # Excel file creation/manipulation
+pygetwindow>=0.0.9     # Window detection and management
+pyautogui>=0.9.54      # GUI automation (click, type, hotkeys)
+
+# Image Processing
+Pillow>=10.0.0
+
+# Screen Capture
+mss>=9.0.0
+
+# Optional: Advanced Excel automation
+# pywin32>=306         # Windows-specific automation (uncomment if needed)
